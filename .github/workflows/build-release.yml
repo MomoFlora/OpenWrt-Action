@@ -115,6 +115,8 @@ jobs:
 
       - name: Load custom configuration
         run: |
+          [[ -d "files" ]] && mv -f files openwrt/files
+          [[ -e "${{ matrix.config_file }}" ]] && cp -f ${{ matrix.config_file }} openwrt/.config
           chmod +x ${{ matrix.post_script }}
           cd openwrt/
           ${{ github.workspace }}/${{ matrix.post_script }} "${{ matrix.soc }}"
@@ -128,4 +130,25 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
-          
+      - name: Compile the OpenWrt firmware
+        id: compile
+        run: |
+          cd openwrt/
+          echo -e "Compiling with $(nproc) threads"
+          make -j$(($(nproc) + 1)) V=s || make -j1 || make -j1 V=s
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Clean up build files and reclaim disk space
+        id: clean
+        if: ${{ steps.compile.outputs.status == 'success' && !cancelled() }}
+        run: |
+          # Clean up build artifacts and reclaim disk space
+          cd openwrt/
+          [[ -d "output" ]] || mkdir output
+          cp -f bin/targets/*/*/*rootfs.tar.gz output/
+          cp -f .config output/config
+          ls -A | grep -vE '^(output|\.ccache)$' | xargs rm -rf || true
+
+          # Export build metadata
+          df -hT ${PWD}
+          echo "status=success" >> ${GITHUB_OUTPUT}
