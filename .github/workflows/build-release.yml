@@ -26,8 +26,8 @@ jobs:
             description: "ruijie_rg-x60-new"
             repo_url: "https://github.com/Yuzhii0718/immortalwrt-mt798x-6.6-padavanonly"
             repo_branch: "openwrt-24.10-6.6"
-            pre_script: "prepare_base.sh"
-            post_script: "prepare_package.sh"
+            pre_script: "scripts/prepare_base.sh"
+            post_script: "scripts/prepare_package.sh"
 
     steps:
       - name: Checkout
