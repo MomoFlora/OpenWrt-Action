@@ -86,7 +86,7 @@ jobs:
         if: ${{ steps.init.outputs.status == 'success' && !cancelled() }}
         run: |
           # Clone the source code repository
-          git clone -q --single-branch --depth=1 --branch=${{ matrix.repo_url }} ${{ matrix.repo_branch }} openwrt
+          git clone -q --single-branch --depth=1 --branch=${{ matrix.repo_branch }} ${{ matrix.repo_url }} openwrt
           ln -sf /builder/openwrt ${{ github.workspace }}/openwrt
 
           # Export build metadata
