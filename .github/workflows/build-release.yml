@@ -1,0 +1,110 @@
+name: Build releases
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 23 * * 4'
+
+jobs:
+  build:
+    name: Build ${{ matrix.description }}
+    runs-on: ubuntu-24.04
+    if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - soc: "mt7986"
+            kernel: "6.6"
+            ip_addr: "10.0.0.1"
+            wifi_name: "ZeroWrt"
+            wifi_password: "1234567890"
+            config_file: "configs/ruijie_rg-x60-new.config"
+            description: "ruijie_rg-x60-new"
+            repo_url: "https://github.com/Yuzhii0718/immortalwrt-mt798x-6.6-padavanonly"
+            repo_branch: "openwrt-24.10-6.6"
+            pre_script: "prepare_base.sh"
+            post_script: "prepare_package.sh"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+
+      - name: Initialize the build environment
+        id: init
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          docker rmi -f $(docker images -q) 2>/dev/null || true
+          [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android 2>/dev/null
+          sudo swapoff -a
+          sudo rm -f /swapfile /mnt/swapfile
+          sudo apt-get -y update
+          sudo apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
+          sudo apt-get -y install $(curl -fsSL https://ophub.org/ubuntu2404-make-openwrt-depends)
+          sudo systemctl daemon-reload
+          #sudo apt-get -y full-upgrade
+          sudo apt-get -y autoremove --purge
+          sudo apt-get clean
+          sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
+          sudo rm -rf ~/{.cargo,.dotnet,.rustup}
+          sudo timedatectl set-timezone "${TZ:-Etc/UTC}"
+          sudo ntpdate ntp.ubuntu.com 0.pool.ntp.org || true
+          sudo timedatectl set-ntp true
+          date -u
+          timedatectl status || true
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Create virtual disk for extended storage
+        id: disk
+        run: |
+          # Get available space in exact GB
+          root_avail=$(df --block-size=1G / | tail -1 | awk '{print $4}')
+          root_size=$(( root_avail - 4 ))
+          [[ "${root_size}" -gt 0 ]] || { echo "Error: Insufficient space on /: ${root_avail}G available"; exit 1; }
+
+          sudo truncate -s "${root_size}"G /root.img
+          build_dev=$(sudo losetup --find --show /root.img)
+          echo "Using /: ${root_size}G"
+
+          sudo mkfs.xfs -f -i sparse=0 -b size=4096 "${build_dev}"
+          sudo mkdir -p /builder
+          sudo mount "${build_dev}" /builder
+          sudo chown -R runner:runner /builder
+          df -Th
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Clone source code
+        id: codes
+        working-directory: /builder
+        if: ${{ steps.init.outputs.status == 'success' && !cancelled() }}
+        run: |
+          # Clone the source code repository
+          git clone -q --single-branch --depth=1 --branch=${{ matrix.repo_url }} ${{ matrix.repo_branch }} openwrt
+          ln -sf /builder/openwrt ${{ github.workspace }}/openwrt
+
+          # Export build metadata
+          echo "build_tag=OpenWrt_${{ matrix.description }}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
+          echo -e "REPO_URL: [ ${{ matrix.repo_url }} ]\nREPO_BRANCH: [ ${{ matrix.repo_branch }}} ]"
+          df -hT ${PWD}
+          echo "REPO_URL=${{ matrix.repo_url }}" >> ${GITHUB_ENV}
+          echo "REPO_BRANCH=${{ matrix.repo_branch }}" >> ${GITHUB_ENV}
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Load custom feeds
+        run: |
+          chmod +x ${{ matrix.pre_script }}
+          cd openwrt/
+          ${{ github.workspace }}/${{ matrix.pre_script }}
+
+      - name: Update feeds
+        run: cd openwrt/ && ./scripts/feeds update -a
+
+      - name: Install feeds
+        run: cd openwrt/ && ./scripts/feeds install -a
