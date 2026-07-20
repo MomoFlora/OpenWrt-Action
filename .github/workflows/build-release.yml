@@ -18,10 +18,6 @@ jobs:
       matrix:
         include:
           - soc: "mt7986"
-            kernel: "6.6"
-            ip_addr: "10.0.0.1"
-            wifi_name: "ZeroWrt"
-            wifi_password: "1234567890"
             config_file: "configs/ruijie_rg-x60-new.config"
             description: "ruijie_rg-x60-new"
             repo_url: "https://github.com/Yuzhii0718/immortalwrt-mt798x-6.6-padavanonly"
@@ -29,6 +25,14 @@ jobs:
             pre_script: "scripts/prepare_base.sh"
             post_script: "scripts/prepare_package.sh"
 
+          - soc: "x86_64"
+            config_file: "configs/x86_64.config"
+            description: "x86_64"
+            repo_url: "https://github.com/immortalwrt/immortalwrt"
+            repo_branch: "openwrt-25.12"
+            pre_script: "scripts/prepare_base.sh"
+            post_script: "scripts/prepare_package.sh"
+            
     steps:
       - name: Checkout
         uses: actions/checkout@main
@@ -108,3 +112,20 @@ jobs:
 
       - name: Install feeds
         run: cd openwrt/ && ./scripts/feeds install -a
+
+      - name: Load custom configuration
+        run: |
+          chmod +x ${{ matrix.post_script }}
+          cd openwrt/
+          ${{ github.workspace }}/${{ matrix.post_script }} "${{ matrix.soc }}"
+
+      - name: Download package
+        id: package
+        run: |
+          cd openwrt/
+          make defconfig
+          make download -j8
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+
+          
