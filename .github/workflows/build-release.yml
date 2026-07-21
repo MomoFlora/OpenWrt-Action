@@ -106,18 +106,18 @@ jobs:
           echo "REPO_BRANCH=${{ matrix.repo_branch }}" >> ${GITHUB_ENV}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Load custom feeds
-        run: |
-          chmod +x ${{ matrix.pre_script }}
-          cd openwrt/
-          ${{ github.workspace }}/${{ matrix.pre_script }}
-
       - name: Update feeds
         run: cd openwrt/ && ./scripts/feeds update -a
 
       - name: Install feeds
         run: cd openwrt/ && ./scripts/feeds install -a
 
+      - name: Load custom feeds
+        run: |
+          chmod +x ${{ matrix.pre_script }}
+          cd openwrt/
+          ${{ github.workspace }}/${{ matrix.pre_script }}
+          
       - name: Load custom configuration
         run: |
           [[ -d "files" ]] && mv -f files openwrt/files
