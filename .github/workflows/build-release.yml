@@ -21,8 +21,8 @@ jobs:
             config_file: "configs/ruijie_rg-x60-new.config"
             description: "ruijie_rg-x60-new"
             patch_path: "https://raw.githubusercontent.com/MomoFlora/OpenWrt-Action/refs/heads/master"
-            repo_url: "https://github.com/Yuzhii0718/immortalwrt-mt798x-6.6-padavanonly"
-            repo_branch: "openwrt-24.10-6.6"
+            repo_url: "https://github.com/chasey-dev/immortalwrt-mt798x-rebase"
+            repo_branch: "25.12"
             pre_script: "scripts/prepare_base.sh"
             post_script: "scripts/prepare_package.sh"
 
