@@ -140,7 +140,7 @@ jobs:
         run: |
           cd openwrt/
           echo -e "Compiling with $(nproc) threads"
-          make -j$(($(nproc) + 1)) V=s || make -j1 || make -j1 V=s
+          make -j$(nproc) || make -j1 || make -j1 V=s
           echo "status=success" >> ${GITHUB_OUTPUT}
 
       - name: Clean up build files and reclaim disk space
@@ -150,10 +150,21 @@ jobs:
           # Clean up build artifacts and reclaim disk space
           cd openwrt/
           [[ -d "output" ]] || mkdir output
-          cp -f bin/targets/*/*/*rootfs.tar.gz output/
+          cp -f bin/targets/*/*/* output/
           cp -f .config output/config
-          ls -A | grep -vE '^(output|\.ccache)$' | xargs rm -rf || true
+          ls -A | grep -vE '^(output)$' | xargs rm -rf || true
 
           # Export build metadata
           df -hT ${PWD}
           echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Upload build artifacts
+        if: ${{ steps.clean.outputs.status == 'success' && !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.description }}
+          path: output/
+          retention-days: 7
+          compression-level: 6
+          if-no-files-found: error
+          
