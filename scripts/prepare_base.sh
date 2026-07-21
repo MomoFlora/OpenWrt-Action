@@ -2,10 +2,9 @@
 
 # default LAN IP
 sed -i "s/192.168.1.1/10.0.0.1/g" package/base-files/files/bin/config_generate
-sed -i "s/192.168.110.1/10.0.0.1/g" package/base-files/files/bin/config_generate
 
 # default hostname
-sed -i "s/ImmortalWrt/OpenWrt/g" package/base-files/files/bin/config_generate
+sed -i "s/ImmortalWrt/EternalWrt/g" package/base-files/files/bin/config_generate
 
 # default password
 default_password=$(openssl passwd -5 password)
