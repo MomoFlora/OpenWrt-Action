@@ -11,6 +11,9 @@ jobs:
     name: Build ${{ matrix.description }}
     runs-on: ubuntu-24.04
     if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+    defaults:
+      run:
+        shell: bash
     permissions:
       contents: write
     strategy:
